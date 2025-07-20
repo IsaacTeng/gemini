@@ -9,94 +9,280 @@
       padding: 2rem;
       line-height: 1.6;
       background: #f9f9f9;
+      max-width: 800px;
+      margin: 0 auto;
     }
 
-    textarea {
-      width: 100%;
-      max-width: 600px;
+    #language-selector {
+      position: absolute;
+      top: 1rem;
+      right: 1rem;
+    }
+
+    #language-selector button {
+      background: none;
+      border: 1px solid #ccc;
+      padding: 0.25rem 0.5rem;
+      margin-left: 0.25rem;
+      cursor: pointer;
+      border-radius: 4px;
+    }
+
+    #language-selector button.active {
+      background-color: #4CAF50;
+      color: white;
+      border-color: #4CAF50;
+    }
+
+    #chat-container {
+      display: flex;
+      flex-direction: column;
+      height: 70vh;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      background-color: white;
+      overflow: hidden;
+      margin-top: 2rem;
+    }
+
+    #chat-messages {
+      flex-grow: 1;
+      overflow-y: auto;
+      padding: 1rem;
+    }
+
+    .message {
+      margin-bottom: 1rem;
+      padding: 0.5rem 1rem;
+      border-radius: 18px;
+      max-width: 80%;
+      word-wrap: break-word;
+    }
+
+    .user-message {
+      background-color: #e3f2fd;
+      margin-left: auto;
+      border-bottom-right-radius: 4px;
+    }
+
+    .bot-message {
+      background-color: #f1f1f1;
+      margin-right: auto;
+      border-bottom-left-radius: 4px;
+    }
+
+    #input-area {
+      display: flex;
+      padding: 1rem;
+      border-top: 1px solid #ccc;
+      background-color: #f5f5f5;
+    }
+
+    #user-input {
+      flex-grow: 1;
+      padding: 0.5rem;
+      border: 1px solid #ccc;
+      border-radius: 4px;
       font-size: 1rem;
     }
 
-    #response {
-      background-color: #fff;
-      border: 1px solid #ccc;
-      padding: 1rem;
-      margin-top: 1rem;
-      max-width: 800px;
-      overflow-wrap: break-word;
-      white-space: normal;
-      word-break: break-word;
-    }
-
-    code {
-      background-color: #eee;
-      padding: 2px 4px;
+    #send-button {
+      margin-left: 0.5rem;
+      padding: 0.5rem 1rem;
+      background-color: #4CAF50;
+      color: white;
+      border: none;
       border-radius: 4px;
-      font-family: Consolas, monospace;
+      cursor: pointer;
     }
 
-    pre {
-      background-color: #eee;
-      padding: 1rem;
-      overflow-x: auto;
-      border-radius: 4px;
+    #send-button:disabled {
+      background-color: #cccccc;
+      cursor: not-allowed;
     }
 
-    h2 {
-      margin-top: 2rem;
+    .loading {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      border: 3px solid rgba(0,0,0,.3);
+      border-radius: 50%;
+      border-top-color: #000;
+      animation: spin 1s ease-in-out infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .message-time {
+      font-size: 0.75rem;
+      color: #666;
+      margin-top: 0.25rem;
     }
   </style>
 </head>
 <body>
-  <h1>Ask Gemini</h1>
-  <form id="myForm">
-    <label for="input">Input:</label><br>
-    <textarea id="input" name="input" rows="6" required placeholder="What would you like to ask about?"></textarea><br>
-    <button type="submit">Send</button>
-  </form>
+  <div id="language-selector">
+    <button class="active" onclick="window.location.href='en'">EN</button>
+    <button onclick="window.location.href='zh-hant'">繁中</button>
+    <button onclick="window.location.href='zh-hans'">简中</button>
+  </div>
 
-  <h2>Response:</h2>
-  <div id="response">Responses will appear here.</div>
+  <h1>Gemini Assistant</h1>
+  
+  <div id="chat-container">
+    <div id="chat-messages"></div>
+    <div id="input-area">
+      <input type="text" id="user-input" placeholder="What would you like to ask about?" required>
+      <button id="send-button">Send</button>
+    </div>
+  </div>
 
   <script>
-    document.getElementById("myForm").addEventListener("submit", async function (event) {
-      event.preventDefault();
+      document.addEventListener('DOMContentLoaded', function() {
+        const chatMessages = document.getElementById('chat-messages');
+        const userInput = document.getElementById('user-input');
+        const sendButton = document.getElementById('send-button');
+        const endpoint = "https://irmaths-helper-194850911789.europe-west2.run.app";
 
-      const inputValue = document.getElementById("input").value;
-      const endpoint = "https://irmaths-helper-194850911789.europe-west2.run.app";
+        // Store conversation history
+        let conversationHistory = [];
 
-      const instructions = `You must respond in pure HTML code - nothing else is required.`;
+        const instructions = `Please respond in English. Many thanks!`;
 
-      try {
-        const response = await fetch(endpoint, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({
-            type: "personal-use",
-            data: inputValue,
-            instructions: instructions.trim()
-          })
-        });
-
-        if (!response.ok) {
-          const text = await response.text();
-          throw new Error(`Server error (${response.status}): ${text}`);
+        function addMessage(content, isUser) {
+          const messageDiv = document.createElement('div');
+          messageDiv.className = `message ${isUser ? 'user-message' : 'bot-message'}`;
+          
+          const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+          messageDiv.innerHTML = `
+            <div>${content}</div>
+            <div class="message-time">${time}</div>
+          `;
+          
+          chatMessages.appendChild(messageDiv);
+          chatMessages.scrollTop = chatMessages.scrollHeight;
         }
 
-        const result = await response.text();
+        function showLoading() {
+          const loadingDiv = document.createElement('div');
+          loadingDiv.className = 'message bot-message';
+          loadingDiv.id = 'loading-message';
+          loadingDiv.innerHTML = '<div class="loading"></div>';
+          chatMessages.appendChild(loadingDiv);
+          chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
 
-        let cleaned = result
-          .replace(/^```html\s*/i, '')
-          .replace(/```$/i, '')
-          .trim();
-        document.getElementById("response").innerHTML = cleaned;
+        function hideLoading() {
+          const loadingDiv = document.getElementById('loading-message');
+          if (loadingDiv) {
+            loadingDiv.remove();
+          }
+        }
 
-      } catch (error) {
-        document.getElementById("response").textContent = "Error: " + error.message;
-      }
-    });
-  </script>
+        function cleanResponse(text) {
+          // Remove all code block markers and any leading/trailing HTML tags
+          return text
+            .replace(/```(html)?/gi, '')  // Remove all ``` and ```html
+            .replace(/<\/?p[^>]*>/g, '')  // Remove <p> and </p> tags
+            .replace(/<\/?div[^>]*>/g, '') // Remove <div> and </div> tags
+            .replace(/^[\s\uFEFF\xA0]+|[\s\uFEFF\xA0]+$/g, ''); // Trim whitespace
+        }
+
+        async function sendMessage() {
+          const message = userInput.value.trim();
+          if (!message) return;
+
+          // Add user message to chat
+          addMessage(message, true);
+          
+          // Add to conversation history
+          conversationHistory.push({ role: 'user', content: message });
+
+          // Clear input and disable
+          userInput.value = '';
+          userInput.disabled = true;
+          sendButton.disabled = true;
+          
+          // Show loading indicator
+          showLoading();
+
+          try {
+            // Prepare the full conversation context
+            const messagesForAPI = [
+              {
+                role: 'system',
+                content: instructions.trim()
+              },
+              ...conversationHistory.map(msg => ({
+                role: msg.role,
+                content: msg.content
+              }))
+            ];
+
+            const response = await fetch(endpoint, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json"
+              },
+              body: JSON.stringify({
+                type: "personal-use",
+                data: JSON.stringify(messagesForAPI),
+                instructions: "Continue the conversation based on the chat history."
+              })
+            });
+
+            if (!response.ok) {
+              const text = await response.text();
+              throw new Error(`Server error (${response.status}): ${text}`);
+            }
+
+            const result = await response.text();
+            
+            // Clean and process the response
+            let cleaned = cleanResponse(result);
+            
+            // Add bot response to chat and history
+            addMessage(cleaned, false);
+            conversationHistory.push({ role: 'assistant', content: cleaned });
+
+          } catch (error) {
+            addMessage("Error: " + error.message, false);
+            console.error("API request failed:", error);
+          } finally {
+            // Re-enable input
+            userInput.disabled = false;
+            sendButton.disabled = false;
+            userInput.focus();
+            hideLoading();
+          }
+        }
+
+        // Event listeners
+        sendButton.addEventListener('click', sendMessage);
+        userInput.addEventListener('keypress', function(e) {
+          if (e.key === 'Enter') {
+            sendMessage();
+          }
+        });
+
+        // Initial focus
+        userInput.focus();
+
+        // // Optional: Add a clear conversation button
+        // function addClearButton() {
+        //   const clearBtn = document.createElement('button');
+        //   clearBtn.textContent = 'Clear Conversation';
+        //   clearBtn.style.marginTop = '10px';
+        //   clearBtn.addEventListener('click', () => {
+        //     conversationHistory = [];
+        //     chatMessages.innerHTML = '';
+        //   });
+        //   document.querySelector('#input-area').appendChild(clearBtn);
+        // }
+        // addClearButton();
+      });
+    </script>
 </body>
 </html>
